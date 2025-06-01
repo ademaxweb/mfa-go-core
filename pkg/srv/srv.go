@@ -10,22 +10,21 @@ import (
 
 type Config struct {
 	Port    int
-	Handler *mux.Router
+	Handler http.Handler
 	Timeout time.Duration
 	Writer  io.Writer
 }
 
 type Service struct {
-	writer  io.Writer
-	port    int
-	Server  *http.Server
-	Handler http.Handler
+	writer io.Writer
+	port   int
+	Server *http.Server
 }
 
 func New(cfg Config) *Service {
 
 	port := 80
-	handler := mux.NewRouter()
+	var handler http.Handler = mux.NewRouter()
 
 	if cfg.Port != 0 {
 		port = cfg.Port
@@ -44,10 +43,9 @@ func New(cfg Config) *Service {
 	}
 
 	return &Service{
-		Server:  srv,
-		Handler: handler,
-		writer:  cfg.Writer,
-		port:    port,
+		Server: srv,
+		writer: cfg.Writer,
+		port:   port,
 	}
 }
 
