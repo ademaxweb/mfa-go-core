@@ -8,6 +8,10 @@ import (
 type Methods []string
 type Func func(http.ResponseWriter, *http.Request)
 
+type Interface interface {
+	Handle(...Route)
+}
+
 type Handler struct {
 	router *mux.Router
 	mws    map[string]*mux.Router
