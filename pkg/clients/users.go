@@ -11,11 +11,6 @@ import (
 	"time"
 )
 
-var (
-	ErrUserNotFound = errors.New("user not found")
-	ErrInvalidData  = errors.New("invalid user data")
-)
-
 type UsersClient interface {
 	GetAllUsers() ([]data.User, error)
 	GetUser(id int) (*data.User, error)
@@ -29,8 +24,8 @@ type httpUsersClient struct {
 	http    *http.Client
 }
 
-func NewUsersClient(baseURL string) UsersClient {
-	return &httpUsersClient{
+func NewUsersClient(baseURL string) (UsersClient, error) {
+	c := &httpUsersClient{
 		baseURL: strings.TrimSuffix(baseURL, "/"),
 		http: &http.Client{
 			Timeout: 5 * time.Second,
@@ -41,6 +36,10 @@ func NewUsersClient(baseURL string) UsersClient {
 			},
 		},
 	}
+
+	c
+
+	return c, nil
 }
 
 func (c *httpUsersClient) GetAllUsers() ([]data.User, error) {
@@ -51,7 +50,7 @@ func (c *httpUsersClient) GetAllUsers() ([]data.User, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrUserNotFound
+		return nil, ErrNotFound
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -74,7 +73,7 @@ func (c *httpUsersClient) GetUser(id int) (*data.User, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrUserNotFound
+		return nil, ErrNotFound
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -143,7 +142,7 @@ func (c *httpUsersClient) UpdateUser(id int, user data.User) (*data.User, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrUserNotFound
+		return nil, ErrNotFound
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -178,12 +177,25 @@ func (c *httpUsersClient) DeleteUser(id int) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return ErrUserNotFound
+		return ErrNotFound
 	}
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
+	return nil
+}
+
+func (c *httpUsersClient) HealthCheck() error {
+	resp, err := c.http.Get(fmt.Sprintf("%s/health", c.baseURL))
+	if err != nil {
+		return fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ErrServiceUnavailable
+	}
 	return nil
 }
