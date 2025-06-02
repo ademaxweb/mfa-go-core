@@ -92,7 +92,7 @@ func (c *httpUsersClient) GetUser(id int) (*data.User, error) {
 func (c *httpUsersClient) CreateUser(user data.User) (int, error) {
 	jsonData, err := json.Marshal(user)
 	if err != nil {
-		return nil, fmt.Errorf("json marshal failed: %w", err)
+		return 0, fmt.Errorf("json marshal failed: %w", err)
 	}
 
 	resp, err := c.http.Post(
@@ -101,22 +101,22 @@ func (c *httpUsersClient) CreateUser(user data.User) (int, error) {
 		bytes.NewBuffer(jsonData),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("http request failed: %w", err)
+		return 0, fmt.Errorf("http request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusBadRequest {
-			return nil, ErrInvalidData
+			return 0, ErrInvalidData
 		}
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return 0, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	var createdUser struct {
 		Id int `json:"id"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&createdUser); err != nil {
-		return nil, fmt.Errorf("json decode failed: %w", err)
+		return 0, fmt.Errorf("json decode failed: %w", err)
 	}
 
 	return createdUser.Id, nil
