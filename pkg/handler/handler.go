@@ -38,21 +38,18 @@ func (h *Handler) Middleware(name string, mwf ...mux.MiddlewareFunc) {
 	h.mws[name] = r
 }
 
-func (h *Handler) Handle(params Route) {
+func (h *Handler) Handle(params ...Route) {
 	r := h.router
 
-	if m, ok := h.mws[params.Middleware]; ok {
-		r = m
+	for _, p := range params {
+		if m, ok := h.mws[p.Middleware]; ok {
+			r = m
+		}
+
+		route := r.HandleFunc(p.Path, p.Func)
+		if p.Methods != nil {
+			route.Methods(p.Methods...)
+		}
 	}
 
-	route := r.HandleFunc(params.Path, params.Func)
-	if params.Methods != nil {
-		route.Methods(params.Methods...)
-	}
-}
-
-func (h *Handler) HandleRoutes(routes ...Route) {
-	for _, route := range routes {
-		h.Handle(route)
-	}
 }
