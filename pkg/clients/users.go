@@ -3,7 +3,6 @@ package clients
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/ademaxweb/mfa-go-core/pkg/data"
 	"net/http"
@@ -37,7 +36,9 @@ func NewUsersClient(baseURL string) (UsersClient, error) {
 		},
 	}
 
-	c
+	if err := c.HealthCheck(); err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }
