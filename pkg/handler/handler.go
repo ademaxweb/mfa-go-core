@@ -10,6 +10,7 @@ type Func func(http.ResponseWriter, *http.Request)
 
 type Interface interface {
 	Handle(...Route)
+	Middleware(string, ...mux.MiddlewareFunc)
 }
 
 type Handler struct {
