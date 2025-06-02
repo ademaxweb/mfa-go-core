@@ -48,3 +48,11 @@ func GetStringEnv(key string, fallback string) string {
 	}
 	return v
 }
+
+func GetStringEnvNFB(key string) (string, error) {
+	v, ok := os.LookupEnv(key)
+	if !ok {
+		return "", nil
+	}
+	return v, nil
+}
