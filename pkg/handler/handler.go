@@ -53,3 +53,13 @@ func (h *Handler) Handle(params ...Route) {
 	}
 
 }
+
+func (h *Handler) HealthRoute() {
+	h.Handle(Route{
+		Path: "/health",
+		Func: func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("ok"))
+		},
+	})
+}

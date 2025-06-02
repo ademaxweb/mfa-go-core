@@ -16,9 +16,10 @@ type Config struct {
 }
 
 type Service struct {
-	writer io.Writer
-	port   int
-	Server *http.Server
+	writer  io.Writer
+	port    int
+	server  *http.Server
+	Handler http.Handler
 }
 
 func New(cfg Config) *Service {
@@ -43,9 +44,10 @@ func New(cfg Config) *Service {
 	}
 
 	return &Service{
-		Server: srv,
-		writer: cfg.Writer,
-		port:   port,
+		server:  srv,
+		Handler: handler,
+		writer:  cfg.Writer,
+		port:    port,
 	}
 }
 
@@ -54,5 +56,5 @@ func (s *Service) Start() error {
 		s.writer.Write([]byte(fmt.Sprintf("Service is starting on port %d\n", s.port)))
 	}
 
-	return s.Server.ListenAndServe()
+	return s.server.ListenAndServe()
 }
