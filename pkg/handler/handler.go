@@ -37,6 +37,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.router.ServeHTTP(w, r)
 }
 
+func (h *Handler) BaseMiddleware(mwf ...mux.MiddlewareFunc) {
+	h.router.Use(mwf...)
+}
+
 func (h *Handler) Middleware(name string, mwf ...mux.MiddlewareFunc) {
 	r := h.router.NewRoute().Subrouter()
 	r.Use(mwf...)
@@ -47,7 +51,7 @@ func (h *Handler) Handle(params ...Route) {
 	r := h.router
 
 	for _, p := range params {
-		if m, ok := h.mws[p.Middleware]; ok {
+		if m, ok := h.mws[p.Middleware]; ok && p.Middleware != "" {
 			r = m
 		}
 
