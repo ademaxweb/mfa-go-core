@@ -13,7 +13,7 @@ import (
 type UsersClient interface {
 	GetAllUsers() ([]data.User, error)
 	GetUser(id int) (*data.User, error)
-	CreateUser(user data.User) (*data.User, error)
+	CreateUser(user data.User) (int, error)
 	UpdateUser(id int, user data.User) (*data.User, error)
 	DeleteUser(id int) error
 }
@@ -89,7 +89,7 @@ func (c *httpUsersClient) GetUser(id int) (*data.User, error) {
 	return &user, nil
 }
 
-func (c *httpUsersClient) CreateUser(user data.User) (*data.User, error) {
+func (c *httpUsersClient) CreateUser(user data.User) (int, error) {
 	jsonData, err := json.Marshal(user)
 	if err != nil {
 		return nil, fmt.Errorf("json marshal failed: %w", err)
@@ -112,12 +112,14 @@ func (c *httpUsersClient) CreateUser(user data.User) (*data.User, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var createdUser data.User
+	var createdUser struct {
+		Id int `json:"id"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&createdUser); err != nil {
 		return nil, fmt.Errorf("json decode failed: %w", err)
 	}
 
-	return &createdUser, nil
+	return createdUser.Id, nil
 }
 
 func (c *httpUsersClient) UpdateUser(id int, user data.User) (*data.User, error) {
