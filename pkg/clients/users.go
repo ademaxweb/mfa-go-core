@@ -13,6 +13,7 @@ import (
 type UsersClient interface {
 	GetAllUsers() ([]data.User, error)
 	GetUser(id int) (*data.User, error)
+	GetUserByEmail(email string) (*data.User, error)
 	CreateUser(user data.User) (int, error)
 	UpdateUser(id int, user data.User) (*data.User, error)
 	DeleteUser(id int) error
@@ -68,6 +69,29 @@ func (c *httpUsersClient) GetAllUsers() ([]data.User, error) {
 
 func (c *httpUsersClient) GetUser(id int) (*data.User, error) {
 	resp, err := c.http.Get(fmt.Sprintf("%s/users/%d", c.baseURL, id))
+	if err != nil {
+		return nil, fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrNotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var user data.User
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, fmt.Errorf("json decode failed: %w", err)
+	}
+
+	return &user, nil
+}
+
+func (c *httpUsersClient) GetUserByEmail(email string) (*data.User, error) {
+	resp, err := c.http.Get(fmt.Sprintf("%s/users/%s", c.baseURL, email))
 	if err != nil {
 		return nil, fmt.Errorf("http request failed: %w", err)
 	}
