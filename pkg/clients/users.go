@@ -1,0 +1,189 @@
+package clients
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/ademaxweb/mfa-go-core/pkg/data"
+	"net/http"
+	"strings"
+	"time"
+)
+
+var (
+	ErrUserNotFound = errors.New("user not found")
+	ErrInvalidData  = errors.New("invalid user data")
+)
+
+type UsersClient interface {
+	GetAllUsers() ([]data.User, error)
+	GetUser(id int) (*data.User, error)
+	CreateUser(user data.User) (*data.User, error)
+	UpdateUser(id int, user data.User) (*data.User, error)
+	DeleteUser(id int) error
+}
+
+type httpUsersClient struct {
+	baseURL string
+	http    *http.Client
+}
+
+func NewUsersClient(baseURL string) UsersClient {
+	return &httpUsersClient{
+		baseURL: strings.TrimSuffix(baseURL, "/"),
+		http: &http.Client{
+			Timeout: 5 * time.Second,
+			Transport: &http.Transport{
+				MaxIdleConns:       10,
+				IdleConnTimeout:    10 * time.Second,
+				DisableCompression: false,
+			},
+		},
+	}
+}
+
+func (c *httpUsersClient) GetAllUsers() ([]data.User, error) {
+	resp, err := c.http.Get(fmt.Sprintf("%s/users", c.baseURL))
+	if err != nil {
+		return nil, fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrUserNotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var users []data.User
+	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+		return nil, fmt.Errorf("json decode failed: %w", err)
+	}
+
+	return users, nil
+}
+
+func (c *httpUsersClient) GetUser(id int) (*data.User, error) {
+	resp, err := c.http.Get(fmt.Sprintf("%s/users/%d", c.baseURL, id))
+	if err != nil {
+		return nil, fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrUserNotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var user data.User
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, fmt.Errorf("json decode failed: %w", err)
+	}
+
+	return &user, nil
+}
+
+func (c *httpUsersClient) CreateUser(user data.User) (*data.User, error) {
+	jsonData, err := json.Marshal(user)
+	if err != nil {
+		return nil, fmt.Errorf("json marshal failed: %w", err)
+	}
+
+	resp, err := c.http.Post(
+		fmt.Sprintf("%s/users", c.baseURL),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusBadRequest {
+			return nil, ErrInvalidData
+		}
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var createdUser data.User
+	if err := json.NewDecoder(resp.Body).Decode(&createdUser); err != nil {
+		return nil, fmt.Errorf("json decode failed: %w", err)
+	}
+
+	return &createdUser, nil
+}
+
+func (c *httpUsersClient) UpdateUser(id int, user data.User) (*data.User, error) {
+	jsonData, err := json.Marshal(user)
+	if err != nil {
+		return nil, fmt.Errorf("json marshal failed: %w", err)
+	}
+
+	req, err := http.NewRequest(
+		http.MethodPut,
+		fmt.Sprintf("%s/users/%d", c.baseURL, id),
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("request creation failed: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrUserNotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusBadRequest {
+			return nil, ErrInvalidData
+		}
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var updatedUser data.User
+	if err := json.NewDecoder(resp.Body).Decode(&updatedUser); err != nil {
+		return nil, fmt.Errorf("json decode failed: %w", err)
+	}
+
+	return &updatedUser, nil
+}
+
+func (c *httpUsersClient) DeleteUser(id int) error {
+	req, err := http.NewRequest(
+		http.MethodDelete,
+		fmt.Sprintf("%s/users/%d", c.baseURL, id),
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("request creation failed: %w", err)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrUserNotFound
+	}
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
